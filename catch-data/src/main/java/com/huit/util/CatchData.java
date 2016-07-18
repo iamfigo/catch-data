@@ -8,9 +8,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -22,6 +20,7 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class CatchData {
+	private static final String urlSub = SystemConf.get("urlSub");
 	private static Logger logger = LoggerFactory.getLogger(CatchData.class);
 	private static String fileSavePath = SystemConf.get("fileSavePath");
 	private static String url = SystemConf.get("url");
@@ -53,16 +52,20 @@ public class CatchData {
 	}
 
 	public static void main(String[] args) throws Exception {
+		String html = null;
+		// html = getHtml(url.replace("{}"), true);
 		CatchData cm = new CatchData();
-		for (int i = SystemConf.get("urlOffset", Integer.class); i < SystemConf.get("urlCount", Integer.class); i++) {
+		int urlOffset = SystemConf.get("urlOffset", Integer.class);
+		int urlCount = SystemConf.get("urlCount", Integer.class);
+		for (int i = urlOffset; i < urlCount; i++) {
 			try {
-				String html = cm.getHtml(url.replace("{}", i + ""), true);
-				List<String> subUrls = getSubUrl(html);
-				for (String subUrl : subUrls) {
+				String trueUrl = url.replace("{}", i + "");
+				html = getHtml(trueUrl, true);
+				for (String subUrl : getSubUrl(url, html)) {
 					try {
 						cm.getHtml(subUrl, true);
 					} catch (Exception ignore) {
-						logger.error("getSubUrlError->url:" + url, ignore);
+						logger.error("getSubUrlError->url:" + subUrl, ignore);
 					}
 				}
 			} catch (Exception ignore) {
@@ -104,7 +107,6 @@ public class CatchData {
 			String data;
 			while (null != (data = br.readLine())) {
 				sb.append(data);
-				getSubUrl(data);
 			}
 			br.close();
 		} catch (Exception e) {
@@ -116,7 +118,7 @@ public class CatchData {
 	public static void getData(String url, String data) {
 		if (!urlParesed.contains(url)) {
 			int indexBegin, indexEnd;
-			String[] matchs = new String[] { "电话", "微信", "email" };
+			String[] matchs = new String[] { "电话", "微信", "email", "请联系" };
 			for (String match : matchs) {
 				indexBegin = data.indexOf(match);
 				if (indexBegin > 0) {
@@ -132,15 +134,16 @@ public class CatchData {
 	}
 
 	private static String url2node(String url) {
-		return url.replace("http://", "");
+		url = url.replace("http://", "");
+		url = url.replace("?", "#");
+		return url;
 	}
 
 	private static String url2filePath(String url) {
-		return fileSavePath + url.replace("http://", "");
+		return fileSavePath + url2node(url);
 	}
 
-	private String getHtml(String url, boolean isWriteFile) throws Exception {
-
+	private static String getHtml(String url, boolean isWriteFile) throws Exception {
 		String html = null;
 		if (urlDownloaded.contains(url2node(url))) {
 			html = getHtmlByFile(url2filePath(url));
@@ -149,8 +152,8 @@ public class CatchData {
 			HttpURLConnection httpConnection = (HttpURLConnection) google.openConnection();
 			httpConnection.setRequestProperty("User-agent", "Mozilla/5.0");
 			httpConnection.setRequestMethod("GET");
-			httpConnection.setConnectTimeout(3000);
-			httpConnection.setReadTimeout(5000);
+			httpConnection.setConnectTimeout(SystemConf.get("ConnectTimeout", Integer.class));
+			httpConnection.setReadTimeout(SystemConf.get("ReadTimeout", Integer.class));
 
 			StringBuffer sb = new StringBuffer();
 			InputStream is = httpConnection.getInputStream();
@@ -177,17 +180,22 @@ public class CatchData {
 	 * 获取subUrl地址
 	 * 
 	 * @param html
+	 * @param html2
 	 * @return
 	 */
-	private static List<String> getSubUrl(String html) {
-		List<String> subUrl = new ArrayList<String>();
+	private static Set<String> getSubUrl(String parentUrl, String html) {
+		Set<String> subUrl = new HashSet<String>();
+		parentUrl = parentUrl.substring(0, parentUrl.lastIndexOf('/') + 1);
 		int indexBegin = 0, indexEnd = 0;
 		do {
-			indexBegin = html.indexOf("http://bbs.tigtag.com/thread", indexEnd);
+			indexBegin = html.indexOf(urlSub, indexEnd);
 			if (indexBegin > 0) {
 				indexEnd = html.indexOf("\"", indexBegin + "<a href".length());
 				if (indexEnd > 0) {
 					String url = html.substring(indexBegin, indexEnd);
+					if (!url.startsWith("http:")) {// 相对地址
+						url = parentUrl + url;
+					}
 					subUrl.add(url);
 				}
 			}
