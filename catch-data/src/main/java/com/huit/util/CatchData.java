@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 public class CatchData {
 	private static Logger logger = LoggerFactory.getLogger(CatchData.class);
 	private static String fileSavePath = SystemConf.get("fileSavePath");
-	private static final String url = SystemConf.get("url");
+	private static String url = SystemConf.get("url");
 	private static Set<String> urlDownloaded = new HashSet<String>();
 	private static Set<String> urlParesed = new HashSet<String>();
 	static {
@@ -54,18 +54,20 @@ public class CatchData {
 
 	public static void main(String[] args) throws Exception {
 		CatchData cm = new CatchData();
-		try {
-			String html = cm.getHtml(url, true);
-			List<String> subUrls = getSubUrl(html);
-			for (String subUrl : subUrls) {
-				try {
-					cm.getHtml(subUrl, true);
-				} catch (Exception ignore) {
-					logger.error("getSubUrlError->url:" + url, ignore);
+		for (int i = SystemConf.get("urlOffset", Integer.class); i < SystemConf.get("urlCount", Integer.class); i++) {
+			try {
+				String html = cm.getHtml(url.replace("{}", i + ""), true);
+				List<String> subUrls = getSubUrl(html);
+				for (String subUrl : subUrls) {
+					try {
+						cm.getHtml(subUrl, true);
+					} catch (Exception ignore) {
+						logger.error("getSubUrlError->url:" + url, ignore);
+					}
 				}
+			} catch (Exception ignore) {
+				logger.error("getUrlError->url:" + url, ignore);
 			}
-		} catch (Exception ignore) {
-			logger.error("getUrlError->url:" + url, ignore);
 		}
 	}
 
@@ -81,11 +83,9 @@ public class CatchData {
 			}
 
 			fos = new FileOutputStream(file);
-
-			// write UTF8 BOM mark if file is empty 
 			final byte[] bom = new byte[] { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF };
 			fos.write(bom);
-			fos.write(html.getBytes());
+			fos.write(html.getBytes("UTF-8"));
 			logger.info("saveFile->" + file.getAbsoluteFile());
 		} catch (IOException ex) {
 			ex.printStackTrace();
@@ -149,16 +149,17 @@ public class CatchData {
 			HttpURLConnection httpConnection = (HttpURLConnection) google.openConnection();
 			httpConnection.setRequestProperty("User-agent", "Mozilla/5.0");
 			httpConnection.setRequestMethod("GET");
-			httpConnection.setConnectTimeout(10000);
-			httpConnection.setReadTimeout(20000);
+			httpConnection.setConnectTimeout(3000);
+			httpConnection.setReadTimeout(5000);
 
 			StringBuffer sb = new StringBuffer();
 			InputStream is = httpConnection.getInputStream();
 			byte[] buf = new byte[1024];
 			int len = 0;
 			String data;
+			String charsetName = SystemConf.get("charsetName");
 			while (-1 != (len = is.read(buf))) {
-				data = new String(buf, 0, len, SystemConf.get("charsetName"));
+				data = new String(buf, 0, len, charsetName);
 				sb.append(data);
 			}
 			httpConnection.disconnect();
