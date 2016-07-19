@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /***
- * 
+ * java -cp catch-data-jar-with-dependencies.jar com.huit.util.ParseData
  * @author huit
  *
  */
