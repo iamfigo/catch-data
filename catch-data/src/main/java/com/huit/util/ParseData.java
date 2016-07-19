@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +21,7 @@ public class ParseData {
 	private static String fileSavePath = SystemConf.get("fileSavePath");
 	private static Set<String> urlDownloaded = new HashSet<String>();
 	private static Set<String> urlParesed = new HashSet<String>();
+	private static String[] keyWordExclude = SystemConf.get("keyWordExclude").split(",");
 	static {
 		File dir = new File(fileSavePath);
 		if (!dir.isDirectory()) {
@@ -46,7 +49,7 @@ public class ParseData {
 
 	public static void main(String[] args) throws Exception {
 		for (String html : urlDownloaded) {
-			getData(html, getHtmlByFile(url2filePath(html)));
+			parseData(html, getHtmlByFile(url2filePath(html)));
 		}
 	}
 
@@ -65,12 +68,33 @@ public class ParseData {
 		return sb.toString();
 	}
 
-	public static void getData(String url, String html) {
+	public static void parseData(String url, String html) {
+		String[] matchs = SystemConf.get("keyWordPatten").split(",");
+		String vfp;
+		for (String match : matchs) {
+			Pattern p = Pattern.compile(match);
+			Matcher m = p.matcher(html);
+			while (m.find()) {
+				vfp = m.group();
+				boolean isExclude = false;
+				for (String exclude : keyWordExclude) {
+					if (vfp.contains(exclude)) {
+						isExclude = true;
+						break;
+					}
+				}
+				if (!isExclude) {
+					logger.info(url + "->" + vfp);
+				}
+			}
+		}
+	}
+
+	/*public static void getData(String url, String html) {
 		if (!urlParesed.contains(url)) {
 			int indexBegin, indexEnd;
 			String[] keyWordExclude = SystemConf.get("keyWordExclude").split(",");
-			// String[] matchs = new String[] { "电话", "微信", "email", "QQ" };
-			String[] matchs = new String[] { "电话", "电 话", "email", "QQ" };
+			String[] matchs = new String[] { "^(\w)+(\.\w+)*@(\w)+((\.\w{2,3}){1,3})$"};
 			int indexBegin = 0, indexEnd = 0;
 			do {
 				for (String match : matchs) {
@@ -110,7 +134,7 @@ public class ParseData {
 			}
 			urlParesed.add(url2node(url));
 		}
-	}
+	}*/
 
 	private static String url2node(String url) {
 		return url.replace("http://", "");
