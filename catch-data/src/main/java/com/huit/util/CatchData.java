@@ -52,25 +52,47 @@ public class CatchData {
 	}
 
 	public static void main(String[] args) throws Exception {
-		String html = null;
-		// html = getHtml(url.replace("{}"), true);
-		CatchData cm = new CatchData();
-		int urlOffset = SystemConf.get("urlOffset", Integer.class);
-		int urlCount = SystemConf.get("urlCount", Integer.class);
-		for (int i = urlOffset; i < urlCount; i++) {
-			try {
-				String trueUrl = url.replace("{}", i + "");
-				html = getHtml(trueUrl, true);
-				for (String subUrl : getSubUrl(url, html)) {
-					try {
-						cm.getHtml(subUrl, true);
-					} catch (Exception ignore) {
-						logger.error("getSubUrlError->url:" + subUrl, ignore);
+		String[] urls = SystemConf.get("urls").split(",");
+		for (String url : urls) {
+			if (!url.startsWith("http:")) {
+				continue;
+			}
+			int indexBegin = url.indexOf("{");
+			if (indexBegin > 0) {
+				int indexEnd = url.indexOf("}", indexBegin);
+				if (indexEnd > 0) {
+					String[] circulationInfo = url.substring(indexBegin + 1, indexEnd).split("-");
+					String head = url.substring(0, indexBegin);
+					String tail = url.substring(indexEnd + 1);
+					if (circulationInfo.length == 2) {
+						int offset = Integer.valueOf(circulationInfo[0]);
+						int count = Integer.valueOf(circulationInfo[1]);
+						logger.info("download->" + url);
+						for (int i = offset; i < count; i++) {
+							url = head + i + tail;
+							downloadHtml(url);
+						}
 					}
 				}
-			} catch (Exception ignore) {
-				logger.error("getUrlError->url:" + url, ignore);
+			} else {
+				logger.info("download->" + url);
+				downloadHtml(url);
 			}
+		}
+	}
+
+	private static void downloadHtml(String url) {
+		try {
+			String html = getHtml(url);
+			for (String subUrl : getSubUrl(url, html)) {
+				try {
+					getHtml(subUrl);
+				} catch (Exception ignore) {
+					logger.error("getSubUrlError->url:" + subUrl, ignore);
+				}
+			}
+		} catch (Exception ignore) {
+			logger.error("getUrlError->url:" + url, ignore);
 		}
 	}
 
@@ -143,7 +165,7 @@ public class CatchData {
 		return fileSavePath + url2node(url);
 	}
 
-	private static String getHtml(String url, boolean isWriteFile) throws Exception {
+	private static String getHtml(String url) throws Exception {
 		String html = null;
 		if (urlDownloaded.contains(url2node(url))) {
 			html = getHtmlByFile(url2filePath(url));
@@ -167,9 +189,7 @@ public class CatchData {
 			}
 			httpConnection.disconnect();
 			httpConnection = null;
-			if (isWriteFile) {
-				writeHtml(url, sb.toString());
-			}
+			writeHtml(url, sb.toString());
 			html = sb.toString();
 		}
 
