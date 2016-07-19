@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 
 /***
  * java -cp catch-data-jar-with-dependencies.jar com.huit.util.ParseData
+ * 
  * @author huit
  *
  */
@@ -21,6 +22,10 @@ public class ParseData {
 	private static String fileSavePath = SystemConf.get("fileSavePath");
 	private static Set<String> urlDownloaded = new HashSet<String>();
 	private static Set<String> catchData = new HashSet<String>();
+	private static Set<String> catchEmail = new HashSet<String>();
+	private static Pattern emailPatten = Pattern.compile(SystemConf.get("emailPatten"));
+	private static Pattern mobilePatten = Pattern.compile(SystemConf.get("mobilePatten"));
+	private static Set<String> catchMobile = new HashSet<String>();
 	private static String[] keyWordExclude = SystemConf.get("keyWordExclude").split(",");
 	static {
 		File dir = new File(fileSavePath);
@@ -48,10 +53,12 @@ public class ParseData {
 	}
 
 	public static void main(String[] args) throws Exception {
-		for (String html : urlDownloaded) {
-			parseData(html, getHtmlByFile(url2filePath(html)));
+		for (String url : urlDownloaded) {
+			parseEmail(url, getHtmlByFile(url2filePath(url)));
+			parseMobile(url, getHtmlByFile(url2filePath(url)));
 		}
-		logger.info("catchData->size:" + catchData.size() + " data:" + catchData);
+		logger.info("catchEmail->size:" + catchEmail.size() + " data:" + catchEmail);
+		logger.info("catchMobile->size:" + catchMobile.size() + " data:" + catchMobile);
 	}
 
 	public static String getHtmlByFile(String filePath) {
@@ -67,6 +74,26 @@ public class ParseData {
 			e.printStackTrace();
 		}
 		return sb.toString();
+	}
+
+	public static void parseEmail(String url, String html) {
+		Matcher m = emailPatten.matcher(html);
+		String data;
+		while (m.find()) {
+			data = m.group();
+			catchEmail.add(data);
+			logger.debug(url + "->" + data);
+		}
+	}
+
+	public static void parseMobile(String url, String html) {
+		Matcher m = mobilePatten.matcher(html);
+		String data;
+		while (m.find()) {
+			data = m.group();
+			catchMobile.add(data);
+			logger.debug(url + "->" + data);
+		}
 	}
 
 	public static void parseData(String url, String html) {
@@ -91,52 +118,6 @@ public class ParseData {
 			}
 		}
 	}
-
-	/*public static void getData(String url, String html) {
-		if (!urlParesed.contains(url)) {
-			int indexBegin, indexEnd;
-			String[] keyWordExclude = SystemConf.get("keyWordExclude").split(",");
-			String[] matchs = new String[] { "^(\w)+(\.\w+)*@(\w)+((\.\w{2,3}){1,3})$"};
-			int indexBegin = 0, indexEnd = 0;
-			do {
-				for (String match : matchs) {
-					
-				}
-				indexBegin = html.indexOf(urlSub, indexEnd);
-				if (indexBegin > 0) {
-					indexEnd = html.indexOf("\"", indexBegin + "<a href".length());
-					if (indexEnd > 0) {
-						String url = html.substring(indexBegin, indexEnd);
-						if (!url.startsWith("http:")) {// 相对地址
-							url = parentUrl + url;
-						}
-						subUrl.add(url);
-					}
-				}
-			} while (indexBegin > 0 && indexEnd > 0);
-			
-			for (String match : matchs) {
-				indexBegin = data.indexOf(match);
-				if (indexBegin > 0) {
-					indexEnd = data.indexOf("<", indexBegin);
-					boolean isExclude = false;
-					if (indexEnd > 0) {
-						data = data.substring(indexBegin, indexEnd);
-						for (String exclude : keyWordExclude) {
-							if (data.contains(exclude)) {
-								isExclude = true;
-								break;
-							}
-						}
-					}
-					if (!isExclude) {
-						logger.info(url + "->" + data);
-					}
-				}
-			}
-			urlParesed.add(url2node(url));
-		}
-	}*/
 
 	private static String url2node(String url) {
 		return url.replace("http://", "");
