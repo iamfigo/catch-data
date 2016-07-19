@@ -20,7 +20,7 @@ public class ParseData {
 	private static Logger logger = LoggerFactory.getLogger(ParseData.class);
 	private static String fileSavePath = SystemConf.get("fileSavePath");
 	private static Set<String> urlDownloaded = new HashSet<String>();
-	private static Set<String> urlParesed = new HashSet<String>();
+	private static Set<String> catchData = new HashSet<String>();
 	private static String[] keyWordExclude = SystemConf.get("keyWordExclude").split(",");
 	static {
 		File dir = new File(fileSavePath);
@@ -51,6 +51,7 @@ public class ParseData {
 		for (String html : urlDownloaded) {
 			parseData(html, getHtmlByFile(url2filePath(html)));
 		}
+		logger.info("catchData->size:" + catchData.size() + " data:" + catchData);
 	}
 
 	public static String getHtmlByFile(String filePath) {
@@ -85,6 +86,7 @@ public class ParseData {
 				}
 				if (!isExclude) {
 					logger.info(url + "->" + vfp);
+					catchData.add(vfp);
 				}
 			}
 		}
